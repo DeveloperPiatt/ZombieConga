@@ -85,12 +85,9 @@ static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
     _lastUpdateTime = currentTime;
     //NSLog(@"%0.2f milliseconds since last update", _dt * 1000);
     
-    
-    
-    
-    
     CGPoint offset = CGPointSubtract(_lastTouchedLocation, _zombie.position);
     float distance = CGPointLength(offset);
+    
     if (distance <= ZOMBIE_MOVE_POINTS_PER_SEC * _dt) {
         _zombie.position = _lastTouchedLocation;
         _velocity = CGPointZero;
