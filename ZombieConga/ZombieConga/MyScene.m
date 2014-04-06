@@ -8,7 +8,11 @@
 
 #import "MyScene.h"
 
-static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
+#define ARC4RANDOM_MAX  0x100000000
+static inline CGFloat ScalarRandomRange(CGFloat min, CGFloat max)
+{
+    return floorf(((double)arc4random() / ARC4RANDOM_MAX) * (max - min) + min );
+}
 
 static inline CGFloat ScalarSign(CGFloat a)
 {
@@ -62,6 +66,7 @@ static inline CGFloat CGPointToAngle(const CGPoint a)
 }
 
 static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
+static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
 
 @implementation MyScene
 {
@@ -71,6 +76,8 @@ static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
     CGPoint _velocity;
     
     CGPoint _lastTouchedLocation;
+    
+    SKAction *_zombieAnimation;
 }
 
 -(id)initWithSize:(CGSize)size
@@ -87,11 +94,32 @@ static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
         // Add Zombie
         _zombie = [SKSpriteNode spriteNodeWithImageNamed:@"zombie1"];
         _zombie.position = CGPointMake(100, 100);
-        //[_zombie setScale:2];
         [self addChild:_zombie];
+        NSMutableArray *textures = [NSMutableArray arrayWithCapacity:10];
+        for (int i = 1; i<4; i++) {
+            NSString *textureName = [NSString stringWithFormat:@"zombie%d", i];
+            SKTexture *texture = [SKTexture textureWithImageNamed:textureName];
+            [textures addObject:texture];
+        }
         
-        [self spawnEnemy];
+        for (int i = 4; i>1; i--) {
+            NSString *textureName = [NSString stringWithFormat:@"zombie%d", i];
+            SKTexture *texture = [SKTexture textureWithImageNamed:textureName];
+            [textures addObject:texture];
+        }
         
+        _zombieAnimation = [SKAction animateWithTextures:textures timePerFrame:0.1];
+        
+//        [_zombie runAction:[SKAction repeatActionForever:_zombieAnimation]];
+        
+        // Spawn Enemies
+        [self runAction:[SKAction repeatActionForever:
+                         [SKAction sequence:@[[SKAction performSelector:@selector(spawnEnemy) onTarget:self],
+                                              [SKAction waitForDuration:2.0]]]]];
+        // Spawn Cats
+        [self runAction:[SKAction repeatActionForever:
+                         [SKAction sequence:@[[SKAction performSelector:@selector(spawnCat) onTarget:self],
+                                              [SKAction waitForDuration:1.0]]]]];
     }
     return self;
 }
@@ -115,64 +143,13 @@ static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
     if (distance <= ZOMBIE_MOVE_POINTS_PER_SEC * _dt) {
         _zombie.position = _lastTouchedLocation;
         _velocity = CGPointZero;
+        [self stopZombieAnimation];
     } else {
         [self moveSprite:_zombie velocity:_velocity];
         [self boundsCheckPlayer];
         [self rotateSprite:_zombie toFace:_velocity rotateRadiansPerSec:ZOMBIE_ROTATE_RADIANS_PER_SEC];
     }
 
-}
-
--(void)moveSprite:(SKSpriteNode*)sprite
-         velocity:(CGPoint)velocity
-{
-    // 1
-    CGPoint amountToMove = CGPointMultiplyScaler(velocity, _dt);
-    
-    //NSLog(@"Amount to move: %@", NSStringFromCGPoint(amountToMove));
-    
-    // 2
-    sprite.position = CGPointAdd(sprite.position, amountToMove);
-}
-
--(void)moveZombieToward:(CGPoint)location
-{
-    CGPoint offset = CGPointSubtract(location, _zombie.position);
-    CGPoint direction = CGPointNormalize(offset);
-    _velocity = CGPointMultiplyScaler(direction, ZOMBIE_MOVE_POINTS_PER_SEC);
-}
-
--(void)touchesBegan:(NSSet *)touches
-          withEvent:(UIEvent *)event
-{
-    UITouch *touch = [touches anyObject];
-    CGPoint touchLocation = [touch locationInNode:self];
-    
-    _lastTouchedLocation = touchLocation;
-    
-    [self moveZombieToward:touchLocation];
-}
-
--(void)touchesMoved:(NSSet *)touches
-          withEvent:(UIEvent *)event
-{
-    UITouch *touch = [touches anyObject];
-    CGPoint touchLocation = [touch locationInNode:self];
-    
-    _lastTouchedLocation = touchLocation;
-    
-    [self moveZombieToward:touchLocation];
-}
-
--(void)touchesEnded:(NSSet *)touches
-          withEvent:(UIEvent *)event
-{
-    UITouch *touch = [touches anyObject];
-    CGPoint touchLocation = [touch locationInNode:self];
-    
-    _lastTouchedLocation = touchLocation;
-    
-    [self moveZombieToward:touchLocation];
 }
 
 -(void)boundsCheckPlayer
@@ -208,6 +185,26 @@ static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
     _velocity = newVelocity;
 }
 
+-(void)moveSprite:(SKSpriteNode*)sprite
+         velocity:(CGPoint)velocity
+{
+    // 1
+    CGPoint amountToMove = CGPointMultiplyScaler(velocity, _dt);
+    
+    //NSLog(@"Amount to move: %@", NSStringFromCGPoint(amountToMove));
+    
+    // 2
+    sprite.position = CGPointAdd(sprite.position, amountToMove);
+}
+
+-(void)moveZombieToward:(CGPoint)location
+{
+    [self startZombieAnimation];
+    CGPoint offset = CGPointSubtract(location, _zombie.position);
+    CGPoint direction = CGPointNormalize(offset);
+    _velocity = CGPointMultiplyScaler(direction, ZOMBIE_MOVE_POINTS_PER_SEC);
+}
+
 - (void)rotateSprite:(SKSpriteNode *)sprite
               toFace:(CGPoint)velocity
  rotateRadiansPerSec:(CGFloat)rotateRadiansPerSec
@@ -224,33 +221,99 @@ static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
     sprite.zRotation += amtToRotate * ScalarSign(shortest);
 }
 
+-(void)touchesBegan:(NSSet *)touches
+          withEvent:(UIEvent *)event
+{
+    UITouch *touch = [touches anyObject];
+    CGPoint touchLocation = [touch locationInNode:self];
+    
+    _lastTouchedLocation = touchLocation;
+    
+    [self moveZombieToward:touchLocation];
+}
+
+-(void)touchesEnded:(NSSet *)touches
+          withEvent:(UIEvent *)event
+{
+    UITouch *touch = [touches anyObject];
+    CGPoint touchLocation = [touch locationInNode:self];
+    
+    _lastTouchedLocation = touchLocation;
+    
+    [self moveZombieToward:touchLocation];
+}
+
+-(void)touchesMoved:(NSSet *)touches
+          withEvent:(UIEvent *)event
+{
+    UITouch *touch = [touches anyObject];
+    CGPoint touchLocation = [touch locationInNode:self];
+    
+    _lastTouchedLocation = touchLocation;
+    
+    [self moveZombieToward:touchLocation];
+}
+
+- (void)spawnCat
+{
+    SKSpriteNode *cat = [SKSpriteNode spriteNodeWithImageNamed:@"cat"];
+    cat.position = CGPointMake(ScalarRandomRange(0, self.size.width),
+                               ScalarRandomRange(0, self.size.height));
+    cat.xScale = 0;
+    cat.yScale = 0;
+    [self addChild:cat];
+    
+    cat.zRotation = -M_PI / 16;
+    
+    SKAction *appear = [SKAction scaleTo:1.0 duration:.5];
+    
+    SKAction *leftWiggle = [SKAction rotateByAngle:M_PI/8 duration:.5];
+    SKAction *rightWiggle = [leftWiggle reversedAction];
+    SKAction *fullWiggle = [SKAction sequence:@[leftWiggle, rightWiggle]];
+    //SKAction *wiggleWait = [SKAction repeatAction:fullWiggle count:10];
+    
+    SKAction *scaleUp = [SKAction scaleBy:1.2 duration:.25];
+    SKAction *scaleDown = [scaleUp reversedAction];
+    SKAction *fullScale = [SKAction sequence:@[scaleUp,
+                                               scaleDown,
+                                               scaleUp,
+                                               scaleDown]];
+    SKAction *group = [SKAction group:@[fullScale, fullWiggle]];
+    SKAction *groupWait = [SKAction repeatAction:group count:10];
+    
+    SKAction *disappear = [SKAction scaleTo:0 duration:.5];
+    SKAction *removeFromParent = [SKAction removeFromParent];
+    
+    [cat runAction:[SKAction sequence:@[appear, groupWait, disappear, removeFromParent]]];
+}
+
 - (void)spawnEnemy
 {
     SKSpriteNode *enemy = [SKSpriteNode spriteNodeWithImageNamed:@"enemy"];
-    enemy.position = CGPointMake(self.size.width + enemy.size.width/2, self.size.height/2);
+    enemy.position = CGPointMake(self.size.width + enemy.size.width/2,
+                                 ScalarRandomRange(enemy.size.height/2,
+                                                   self.size.height-enemy.size.height/2));
     [self addChild:enemy];
     
-    SKAction *actionMidMove = [SKAction moveByX:-self.size.width/2-enemy.size.width/2
-                                              y:-self.size.height/2+enemy.size.height/2
-                                       duration:2.0];
-    SKAction *actionMove = [SKAction moveByX:-self.size.width/2-enemy.size.width/2
-                                           y:self.size.height/2+enemy.size.height/2
-                                    duration:2.0];
+    SKAction *actionMove = [SKAction moveToX:-enemy.size.width/2 duration:2.0];
     
-    SKAction *wait = [SKAction waitForDuration:1];
-    SKAction *logMessage = [SKAction runBlock:^{
-        NSLog(@"Reached bottom!");
-    }];
-    
-    //SKAction *reverseMid = [actionMidMove reversedAction];
-    //SKAction *reverseMove = [actionMove reversedAction];
-    
-    
-    //SKAction *sequence = [SKAction sequence:@[actionMidMove, logMessage, wait, actionMove, reverseMove, logMessage, wait, reverseMid]];
-    SKAction *sequence = [SKAction sequence:@[actionMidMove, logMessage, wait, actionMove]];
-    sequence = [SKAction sequence:@[sequence, [sequence reversedAction]]];
-    
-    [enemy runAction:sequence];
+    SKAction *actionRemove = [SKAction removeFromParent];
+    [enemy runAction:[SKAction sequence:@[actionMove,
+                                          actionRemove]]];
+}
+
+- (void)startZombieAnimation
+{
+    if (![_zombie actionForKey:@"animation"]) {
+        [_zombie runAction:
+         [SKAction repeatActionForever:_zombieAnimation]
+                   withKey:@"animation"];
+    }
+}
+
+- (void)stopZombieAnimation
+{
+    [_zombie removeActionForKey:@"animation"];
 }
 
 @end
