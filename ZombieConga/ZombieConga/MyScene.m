@@ -78,6 +78,9 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
     CGPoint _lastTouchedLocation;
     
     SKAction *_zombieAnimation;
+    
+    SKAction *_catCollisionSound;
+    SKAction *_enemyCollisionSound;
 }
 
 -(id)initWithSize:(CGSize)size
@@ -120,6 +123,9 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
         [self runAction:[SKAction repeatActionForever:
                          [SKAction sequence:@[[SKAction performSelector:@selector(spawnCat) onTarget:self],
                                               [SKAction waitForDuration:1.0]]]]];
+        
+        _catCollisionSound = [SKAction playSoundFileNamed:@"hitCat.wav" waitForCompletion:NO];
+        _enemyCollisionSound = [SKAction playSoundFileNamed:@"hitCatLady.wav" waitForCompletion:NO];
     }
     return self;
 }
@@ -149,7 +155,12 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
         [self boundsCheckPlayer];
         [self rotateSprite:_zombie toFace:_velocity rotateRadiansPerSec:ZOMBIE_ROTATE_RADIANS_PER_SEC];
     }
+//    [self checkCollisions];
+}
 
+- (void)didEvaluateActions
+{
+    [self checkCollisions];
 }
 
 -(void)boundsCheckPlayer
@@ -183,6 +194,26 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
     // 4
     _zombie.position = newPosition;
     _velocity = newVelocity;
+}
+
+- (void)checkCollisions
+{
+    [self enumerateChildNodesWithName:@"cat" usingBlock:^(SKNode *node, BOOL *stop){
+        SKSpriteNode *cat = (SKSpriteNode *)node;
+        if (CGRectIntersectsRect(cat.frame, _zombie.frame)) {
+            [cat removeFromParent];
+            [self runAction:_catCollisionSound];
+        }
+    }];
+    
+    [self enumerateChildNodesWithName:@"enemy" usingBlock:^(SKNode *node, BOOL *stop){
+        SKSpriteNode *enemy = (SKSpriteNode *)node;
+        CGRect smallerFrame = CGRectInset(enemy.frame, 20, 20);
+        if (CGRectIntersectsRect(smallerFrame, _zombie.frame)) {
+            [enemy removeFromParent];
+            [self runAction:_enemyCollisionSound];
+        }
+    }];
 }
 
 -(void)moveSprite:(SKSpriteNode*)sprite
@@ -257,6 +288,7 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
 - (void)spawnCat
 {
     SKSpriteNode *cat = [SKSpriteNode spriteNodeWithImageNamed:@"cat"];
+    cat.name = @"cat";
     cat.position = CGPointMake(ScalarRandomRange(0, self.size.width),
                                ScalarRandomRange(0, self.size.height));
     cat.xScale = 0;
@@ -290,6 +322,7 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
 - (void)spawnEnemy
 {
     SKSpriteNode *enemy = [SKSpriteNode spriteNodeWithImageNamed:@"enemy"];
+    enemy.name = @"enemy";
     enemy.position = CGPointMake(self.size.width + enemy.size.width/2,
                                  ScalarRandomRange(enemy.size.height/2,
                                                    self.size.height-enemy.size.height/2));
