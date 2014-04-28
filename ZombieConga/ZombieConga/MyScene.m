@@ -6,7 +6,11 @@
 //  Copyright (c) 2014 iPiatt. All rights reserved.
 //
 
+@import AVFoundation;
+
 #import "MyScene.h"
+#import "GameOverScene.h"
+
 
 #define ARC4RANDOM_MAX  0x100000000
 static inline CGFloat ScalarRandomRange(CGFloat min, CGFloat max)
@@ -67,6 +71,7 @@ static inline CGFloat CGPointToAngle(const CGPoint a)
 
 static const float ZOMBIE_MOVE_POINTS_PER_SEC = 120.0;
 static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
+static const float CAT_MOVE_POINTS_PER_SEC = 120.0;
 
 @implementation MyScene
 {
@@ -81,22 +86,33 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
     
     SKAction *_catCollisionSound;
     SKAction *_enemyCollisionSound;
+    
+    AVAudioPlayer *_backgroundMusicPlayer;
+    
+    BOOL _isInvincible;
+    
+    int _lives;
+    BOOL _gameOver;
 }
 
 -(id)initWithSize:(CGSize)size
 {
     if (self = [super initWithSize:size]) {
         self.backgroundColor = [SKColor whiteColor];
+        
+        _lives = 5;
+        _gameOver = NO;
+        [self playBackgroundMusic:@"bgMusic.mp3"];
+        
         SKSpriteNode *bg = [SKSpriteNode spriteNodeWithImageNamed:@"background"];
         bg.position = CGPointMake(self.size.width/2, self.size.height/2);
-        //bg.zRotation = M_PI / 8;
         [self addChild:bg];
-        CGSize mySize = bg.size;
-        NSLog(@"Size: %@", NSStringFromCGSize(mySize));
         
         // Add Zombie
         _zombie = [SKSpriteNode spriteNodeWithImageNamed:@"zombie1"];
         _zombie.position = CGPointMake(100, 100);
+        _zombie.zPosition = 100;
+        _isInvincible = FALSE;
         [self addChild:_zombie];
         NSMutableArray *textures = [NSMutableArray arrayWithCapacity:10];
         for (int i = 1; i<4; i++) {
@@ -155,7 +171,19 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
         [self boundsCheckPlayer];
         [self rotateSprite:_zombie toFace:_velocity rotateRadiansPerSec:ZOMBIE_ROTATE_RADIANS_PER_SEC];
     }
-//    [self checkCollisions];
+    [self moveTrain];
+    
+    if (_lives <= 0 && !_gameOver) {
+        _gameOver = YES;
+        NSLog(@"You lose!");
+        [_backgroundMusicPlayer stop];
+        
+        SKScene *gameOverScene = [[GameOverScene alloc] initWithSize:self.size won:NO];
+        
+        SKTransition *reveal = [SKTransition flipHorizontalWithDuration:0.5];
+        
+        [self.view presentScene:gameOverScene transition:reveal];
+    }
 }
 
 - (void)didEvaluateActions
@@ -201,17 +229,76 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
     [self enumerateChildNodesWithName:@"cat" usingBlock:^(SKNode *node, BOOL *stop){
         SKSpriteNode *cat = (SKSpriteNode *)node;
         if (CGRectIntersectsRect(cat.frame, _zombie.frame)) {
-            [cat removeFromParent];
+            //[cat removeFromParent];
             [self runAction:_catCollisionSound];
+            
+            cat.name = @"train";
+            [cat removeAllActions];
+            [cat setScale:1];
+            cat.zRotation = 0;
+            [cat runAction:[SKAction sequence:@[
+                                                [SKAction colorizeWithColor:[SKColor greenColor] colorBlendFactor:1.0 duration:.2]
+                                                ]]];
         }
     }];
     
-    [self enumerateChildNodesWithName:@"enemy" usingBlock:^(SKNode *node, BOOL *stop){
-        SKSpriteNode *enemy = (SKSpriteNode *)node;
-        CGRect smallerFrame = CGRectInset(enemy.frame, 20, 20);
-        if (CGRectIntersectsRect(smallerFrame, _zombie.frame)) {
-            [enemy removeFromParent];
-            [self runAction:_enemyCollisionSound];
+    if (!_isInvincible) {
+        [self enumerateChildNodesWithName:@"enemy" usingBlock:^(SKNode *node, BOOL *stop){
+            SKSpriteNode *enemy = (SKSpriteNode *)node;
+            CGRect smallerFrame = CGRectInset(enemy.frame, 20, 20);
+            if (CGRectIntersectsRect(smallerFrame, _zombie.frame)) {
+                [self runAction:_enemyCollisionSound];
+                
+                [self loseCats];
+                _lives--;
+
+                _isInvincible = true;
+                
+                float blinkTimes = 10;
+                float blinkDuration = 3.0;
+                SKAction *blinkAction = [SKAction customActionWithDuration:blinkDuration
+                                                               actionBlock:^(SKNode *node, CGFloat elapsedTime) {
+                                                                   float slice = blinkDuration / blinkTimes;
+                                                                   float remainder = fmodf(elapsedTime, slice);
+                                                                   _zombie.hidden = remainder > slice / 2;
+                                                               }];
+                
+                SKAction *showZombieAction = [SKAction runBlock:^{
+                    _zombie.hidden = FALSE;
+                    _isInvincible = FALSE;
+                }];
+                
+                SKAction *blinkSequence = [SKAction sequence:@[blinkAction, showZombieAction]];
+                
+                [_zombie runAction:blinkSequence];
+            }
+            
+        }];
+    }
+    
+}
+
+- (void)loseCats
+{
+    __block int loseCount = 0;
+    [self enumerateChildNodesWithName:@"train" usingBlock:^(SKNode *node, BOOL *stop) {
+        CGPoint randomSpot = node.position;
+        randomSpot.x += ScalarRandomRange(-100, 100);
+        randomSpot.y += ScalarRandomRange(-100, 100);
+        
+        node.name = @"";
+        [node runAction:
+             [SKAction sequence:@[
+                                  [SKAction group:@[
+                                                    [SKAction rotateByAngle:M_PI * 4 duration:1.0],
+                                                    [SKAction moveTo:randomSpot duration:1.0],
+                                                    [SKAction scaleTo:0 duration:1.0]
+                                                    ]],
+                                  [SKAction removeFromParent]
+                                  ]]];
+        loseCount++;
+        if (loseCount >= 2) {
+            *stop = YES;
         }
     }];
 }
@@ -228,12 +315,53 @@ static const float ZOMBIE_ROTATE_RADIANS_PER_SEC = 4 * M_PI;
     sprite.position = CGPointAdd(sprite.position, amountToMove);
 }
 
+- (void)moveTrain
+{
+    __block int trainCount = 0;
+    __block CGPoint targetPosition = _zombie.position;
+    [self enumerateChildNodesWithName:@"train" usingBlock:^(SKNode *node, BOOL *stop) {
+        trainCount++;
+        if (!node.hasActions) {
+            float actionDuration = 0.3;
+            CGPoint offset = CGPointSubtract(targetPosition, node.position);
+            CGPoint direction = CGPointNormalize(offset);
+            CGPoint amountToMovePerSec = CGPointMultiplyScaler(direction, CAT_MOVE_POINTS_PER_SEC);
+            CGPoint amountToMove = CGPointMultiplyScaler(amountToMovePerSec, actionDuration);
+            SKAction *moveAction = [SKAction moveByX:amountToMove.x y:amountToMove.y duration:actionDuration];
+            [node runAction:moveAction];
+        }
+        targetPosition = node.position;
+    }];
+    
+    if (trainCount >= 30 && !_gameOver) {
+        _gameOver = YES;
+        NSLog(@"You win!");
+        [_backgroundMusicPlayer stop];
+        SKScene *gameOverScene = [[GameOverScene alloc] initWithSize:self.size won:YES];
+        
+        SKTransition *reveal = [SKTransition flipHorizontalWithDuration:0.5];
+        
+        [self.view presentScene:gameOverScene transition:reveal];
+    }
+}
+
 -(void)moveZombieToward:(CGPoint)location
 {
     [self startZombieAnimation];
     CGPoint offset = CGPointSubtract(location, _zombie.position);
     CGPoint direction = CGPointNormalize(offset);
     _velocity = CGPointMultiplyScaler(direction, ZOMBIE_MOVE_POINTS_PER_SEC);
+}
+
+- (void)playBackgroundMusic:(NSString *)fileName
+{
+    NSError *error;
+    NSURL *backgroundMusicURL = [[NSBundle mainBundle] URLForResource:fileName withExtension:nil];
+    
+    _backgroundMusicPlayer = [[AVAudioPlayer alloc]initWithContentsOfURL:backgroundMusicURL error:&error];
+    _backgroundMusicPlayer.numberOfLoops = -1;
+    [_backgroundMusicPlayer prepareToPlay];
+    [_backgroundMusicPlayer play];
 }
 
 - (void)rotateSprite:(SKSpriteNode *)sprite

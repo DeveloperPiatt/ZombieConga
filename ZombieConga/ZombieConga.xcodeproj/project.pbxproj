@@ -51,6 +51,8 @@
 		6A15C48418EBCA44003041FA /* zombie3@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6A15C46918EBCA44003041FA /* zombie3@2x.png */; };
 		6A15C48518EBCA44003041FA /* zombie4.png in Resources */ = {isa = PBXBuildFile; fileRef = 6A15C46A18EBCA44003041FA /* zombie4.png */; };
 		6A15C48618EBCA44003041FA /* zombie4@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6A15C46B18EBCA44003041FA /* zombie4@2x.png */; };
+		6AA71BB4190D98A7005F54BA /* GameOverScene.m in Sources */ = {isa = PBXBuildFile; fileRef = 6AA71BB3190D98A7005F54BA /* GameOverScene.m */; };
+		6AA71BB7190DCEE8005F54BA /* MainMenuScene.m in Sources */ = {isa = PBXBuildFile; fileRef = 6AA71BB6190DCEE8005F54BA /* MainMenuScene.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +116,10 @@
 		6A15C46918EBCA44003041FA /* zombie3@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "zombie3@2x.png"; sourceTree = "<group>"; };
 		6A15C46A18EBCA44003041FA /* zombie4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = zombie4.png; sourceTree = "<group>"; };
 		6A15C46B18EBCA44003041FA /* zombie4@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "zombie4@2x.png"; sourceTree = "<group>"; };
+		6AA71BB2190D98A7005F54BA /* GameOverScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GameOverScene.h; sourceTree = "<group>"; };
+		6AA71BB3190D98A7005F54BA /* GameOverScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GameOverScene.m; sourceTree = "<group>"; };
+		6AA71BB5190DCEE8005F54BA /* MainMenuScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainMenuScene.h; sourceTree = "<group>"; };
+		6AA71BB6190DCEE8005F54BA /* MainMenuScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MainMenuScene.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,6 +189,10 @@
 				6A15C42918EBC582003041FA /* ViewController.m */,
 				6A15C42B18EBC582003041FA /* MyScene.h */,
 				6A15C42C18EBC582003041FA /* MyScene.m */,
+				6AA71BB5190DCEE8005F54BA /* MainMenuScene.h */,
+				6AA71BB6190DCEE8005F54BA /* MainMenuScene.m */,
+				6AA71BB2190D98A7005F54BA /* GameOverScene.h */,
+				6AA71BB3190D98A7005F54BA /* GameOverScene.m */,
 				6A15C42E18EBC582003041FA /* Spaceship.png */,
 				6A15C43018EBC582003041FA /* Images.xcassets */,
 				6A15C41A18EBC582003041FA /* Supporting Files */,
@@ -402,9 +412,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6AA71BB4190D98A7005F54BA /* GameOverScene.m in Sources */,
 				6A15C42D18EBC582003041FA /* MyScene.m in Sources */,
 				6A15C42A18EBC582003041FA /* ViewController.m in Sources */,
 				6A15C42418EBC582003041FA /* AppDelegate.m in Sources */,
+				6AA71BB7190DCEE8005F54BA /* MainMenuScene.m in Sources */,
 				6A15C42018EBC582003041FA /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -612,6 +624,7 @@
 				6A15C44918EBC582003041FA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		6A15C44A18EBC582003041FA /* Build configuration list for PBXNativeTarget "ZombieCongaTests" */ = {
 			isa = XCConfigurationList;
@@ -620,6 +633,7 @@
 				6A15C44C18EBC582003041FA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
